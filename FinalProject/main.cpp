@@ -102,12 +102,14 @@ int main(int argc, char const **argv)
 
 		/*Evaluate Operation's Arguments' Conditions and Fields*/
 
-		string conditionNamesArr[10];
-		string conditionValuesArr[10];
-		string conditionBooleanArr[10];
+		string conditionNamesArr[100];
+		string conditionValuesArr[100];
+		string conditionBooleanArr[100];
+		string fieldsArr[100];
 		int j = 0;
 		int k = 0;
 		int l = 0;
+		int m = 0;
 		string str;
 
 		if (operationChoice == "find"){
@@ -156,6 +158,34 @@ int main(int argc, char const **argv)
 			conditionValuesArr[l] = str;
 			l++;
 			i++;
+			str = "";
+
+			//Parse Fields
+			i++;
+			i++;
+			i++;
+			while(queryIn[i] != ']' & queryIn.length() != i){
+
+				char ch = queryIn[i]; 
+
+				//condition name
+				if(queryIn[i] == ','){
+	       				fieldsArr[m] = str;
+					cout << "Made it here: "<<str<<'\n';
+					m++;
+					i++;
+					str = "";
+				}
+				else{
+					str += ch;
+				}
+				i++;
+			}
+			if (str != ""){
+				fieldsArr[m] = str;
+				m++;
+				i++;
+			}
 		}
 		else if (operationChoice == "avg"){
 
@@ -211,6 +241,17 @@ int main(int argc, char const **argv)
 			j++;
 		}
 	  	cout << '\n';	
+
+
+		//Print fields 
+		cout << "Fields:\n";
+		j = 0;
+		while(fieldsArr[j] != ""){
+			cout << fieldsArr[j] << ' ';
+			j++;
+		}
+	  	cout << '\n';	
+
 
 		/*Read in values*/
 		/*
