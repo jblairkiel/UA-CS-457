@@ -18,5 +18,5 @@ clean:
 	rm -f *.exe
 
 run:	clean finalproject 
-	#finalproject FinalData250.txt
-	./finalproject
+	./finalproject FinalData250.txt
+	#./finalproject

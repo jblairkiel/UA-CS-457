@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <fstream>
 #include <stdarg.h>
 #include <string>
 #include <vector>
@@ -29,6 +30,8 @@ int main(int argc, char const **argv)
 	//if (argc == 1) Fatal("%d arguments!\n", argc - 1);
 
 	argIndex = ProcessOptions(argc, argv);
+
+	cout << "argv[1] is: " << argv[1]<<'\n';
 
 	/*
 	if (argIndex == argc){
@@ -171,7 +174,6 @@ int main(int argc, char const **argv)
 				//condition name
 				if(queryIn[i] == ','){
 	       				fieldsArr[m] = str;
-					cout << "Made it here: "<<str<<'\n';
 					m++;
 					i++;
 					str = "";
@@ -196,7 +198,6 @@ int main(int argc, char const **argv)
 				//field name
 				if(queryIn[i] == ')'){
 	       				conditionNamesArr[j] = str;
-					cout << str;
 					j++;
 					str = "";
 					break;
@@ -215,6 +216,7 @@ int main(int argc, char const **argv)
 			cout << "Error: Please enter a valid query ('find' or 'avg');";
 		}
 
+		/*
 		//Print conditionNames
 		cout << "Condition Names:\n";
 		j = 0;
@@ -251,32 +253,20 @@ int main(int argc, char const **argv)
 			j++;
 		}
 	  	cout << '\n';	
+		*/
+
 
 
 		/*Read in values*/
-		/*
-		printf("Made it here");
-		FILE *fFile;
-		char ch;
-		char word[255];
-		//fFile = fopen(argv[argIndex], "r");
-		fFile = fopen("test.txt", "r");
-
-		FILE *fFile;
-		char ch[255];
-		char *last;
-
-		//While file is good, add ints from the file into the stack holder
-		while ((fgets(ch,255,fFile)) != NULL){
-			last = strtok(ch," ");
-			while(last != NULL){
-				n = newBinaryTreeNode();
-				n->value = atoi(last);
-				push(holder,n,optionD);
-				last = strtok(NULL," ");
-			}
-		fclose(fFile);
-		*/
+		string line;
+		string file = argv[1];
+		ifstream dataFile (file);
+	 	if (dataFile.is_open()){
+	 		while ( getline (dataFile,line) ){
+	 			//cout << line << '\n';
+	 		}
+	 		dataFile.close();
+		}
 	}
 	return 0;
 
