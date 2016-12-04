@@ -9,7 +9,10 @@
 
 using namespace std;
 
-/* Attributions:
+/* Concept:
+ * 	Create NoSQL DBMS that processes query using as little memory as possible
+ *
+ * Attributions:
 	Dr. Lusth provided an options.c file, which I modified into this main.cpp file
 
 	-Blair Kiel
@@ -19,6 +22,10 @@ using namespace std;
 int optionV = 0;
 int optionD = 0;
 
+void printSelectedFields(string line,string *fieldsArr);
+bool conditionMatches(string line, string conditionName, string conditionValue);
+int arrayLen(string *arr);
+void processQuery(string file,string operation,string *conditionNamesArr,string *conditionValuesArr, string *conditionBooleanArr, string *fieldsArr);
 int ProcessOptions(int, char const **);
 void Fatal(char const *, ...);
 
@@ -216,7 +223,6 @@ int main(int argc, char const **argv)
 			cout << "Error: Please enter a valid query ('find' or 'avg');";
 		}
 
-		/*
 		//Print conditionNames
 		cout << "Condition Names:\n";
 		j = 0;
@@ -252,24 +258,196 @@ int main(int argc, char const **argv)
 			cout << fieldsArr[j] << ' ';
 			j++;
 		}
-	  	cout << '\n';	
-		*/
+	  	cout << '\n' << '\n';	
 
+		processQuery(argv[1],operationChoice, conditionNamesArr, conditionValuesArr, conditionBooleanArr, fieldsArr);
 
-
-		/*Read in values*/
-		string line;
-		string file = argv[1];
-		ifstream dataFile (file);
-	 	if (dataFile.is_open()){
-	 		while ( getline (dataFile,line) ){
-	 			//cout << line << '\n';
-	 		}
-	 		dataFile.close();
-		}
-	}
 	return 0;
 
+	}
+}
+
+
+void processQuery(string file,string operation, string *conditionNamesArr, string *conditionValuesArr, string *conditionBooleanArr,string *fieldsArr){
+
+	/*Read in values*/
+	string line;
+	ifstream dataFile (file);
+	string matchesArr[500];
+	int i = 0;
+	int j = 0;
+	if (dataFile.is_open()){
+
+		long id = 0;
+		//process operation
+		if(operation == "find"){
+
+			string helperArr[500];
+			string tempArr[500];
+
+			//process booleans
+			if(arrayLen(conditionBooleanArr) != 0){
+				/*
+				while ( getline (dataFile,line) ){
+						
+				}
+				*/
+			}
+			else{
+				while ( getline (dataFile,line) ){
+					
+					//process condition
+					if(conditionMatches(line, conditionNamesArr[0], conditionValuesArr[0])){
+						matchesArr[i] = "ID: " + to_string(i) + " " + line;
+						i++;
+					}	
+				}
+
+			}
+
+			//print the selected values
+			if(arrayLen(fieldsArr) > 0){
+				while(matchesArr[j] != ""){
+					printSelectedFields(matchesArr[j], fieldsArr);
+					j++;
+				}
+			}
+			else{
+				while(matchesArr[j] != ""){
+					cout << matchesArr[j] << '\n';
+					j++;
+				}	
+			}
+
+		}
+		else if(operation == "avg"){
+
+		}
+		else{
+			cout << "Incorrect Operation";
+		}
+		
+		id++;		
+		//cout << line << '\n';
+		dataFile.close();
+	}
+
+
+}
+void printSelectedFields(string line, string *fieldsArr){
+
+	int i = 0;
+	int j;
+	char ch;
+	string fName;
+	string fValue;
+	bool foundField = false;
+	while(line.length() != i){
+		ch = line[i];
+
+		//find conditionName
+		while(line[i] != ':'){
+			ch = line[i];
+			fName += ch;
+			i++;
+		}
+		i++;
+		i++;
+
+		//find conditionValue
+		while(line[i] != ' '){
+			ch = line[i];
+			fValue += ch;
+			i++;
+		}
+	
+		j = 0;
+		//iterate through fields
+		while(fieldsArr[j] != ""){
+
+			//if field is selected
+			if(fName == fieldsArr[j]){
+				cout << " " << fName << ": " << fValue;
+				foundField = true;
+			}
+		}
+			foundField = false;
+		i++;
+	}
+
+	//print newline if field is found
+	if (foundField){
+		cout << '\n';
+	}
+
+	return;
+}
+/*
+ * JUST CHECKS == so far
+ */
+bool conditionMatches(string line, string conditionName, string conditionValue){
+
+	int i = 0;
+	char ch;
+	string cName;
+	string cValue;
+	//cout << "Line len is " << line.length() << '\n';
+	while(line.length() != i){
+		ch = line[i];
+
+		//find conditionName
+		while(line[i] != ':'){
+			if (line.length() == i){
+				return false;
+			}
+			ch = line[i];
+			cName += ch;
+			i++;
+		}
+		i++;
+		i++;
+
+		//find conditionValue
+		while(line[i] != ' '){
+			ch = line[i];
+			cValue += ch;
+			i++;
+		}
+
+
+		//if match
+		cout << "cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+		if(cName == conditionName and cValue == conditionValue){
+			//cout << "matches";
+			return true;
+		}
+		else if(cName == conditionName and cValue != conditionValue){
+			//cout << "Did not find";
+			return false;
+		}
+		cName = "";
+		cValue = "";
+		//cout << i << "\n";
+	}
+	//cout << "Made it here without finding";
+	return false;
+
+}
+
+/* Counts and returns the Length of An Array
+ *
+ */
+int arrayLen(string *arr){
+
+	int i = 0;
+	int count = 0;
+	//cout << "Counting: ";
+	while(arr[i] != ""){
+		//cout << arr[i] << " ";
+		i++;
+	}
+	//cout << "\nArrayLen Is: " << to_string(i) << '\n';
+	return i++;
 }
 
 void Fatal(char const *fmt, ...)
