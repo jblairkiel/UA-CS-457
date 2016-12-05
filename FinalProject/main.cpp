@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <stdarg.h>
@@ -15,17 +16,40 @@ using namespace std;
  * Attributions:
 	Dr. Lusth provided an options.c file, which I modified into this main.cpp file
 
+	Applied a modified trim function similiar to python's trim function
+
 	-Blair Kiel
 */
+
+template <std::ctype_base::mask mask>
+class IsNot
+{
+	std::locale myLocale;       // To ensure lifetime of facet...
+        std::ctype<char> const* myCType;
+public:
+	IsNot( std::locale const& l = std::locale() )
+		: myLocale( l )
+		, myCType( &std::use_facet<std::ctype<char> >( l ) )
+		{
+		}
+	bool operator()( char ch ) const{
+		return ! myCType->is( mask, ch );
+	}
+};
+
+typedef IsNot<std::ctype_base::space> IsNotSpace;
+
 
 /* options */
 int optionV = 0;
 int optionD = 0;
 
+string trim( string const& original );
+int retreiveAvgValue(string line, string field);
 void printSelectedFields(string line,string *fieldsArr);
-bool conditionMatches(string line, string conditionName, string conditionValue);
+bool conditionMatches(string line, string conditionName, string conditionOperator, string conditionValue);
 int arrayLen(string *arr);
-void processQuery(string file,string operation,string *conditionNamesArr,string *conditionValuesArr, string *conditionBooleanArr, string *fieldsArr);
+void processQuery(string file, string operation, string *conditionNamesArr, string *conditionOperatorsArr, string *conditionValuesArr, string *conditionBooleanArr, string *fieldsArr);
 int ProcessOptions(int, char const **);
 void Fatal(char const *, ...);
 
@@ -114,12 +138,14 @@ int main(int argc, char const **argv)
 
 		string conditionNamesArr[100];
 		string conditionValuesArr[100];
+		string conditionOperatorsArr[100];
 		string conditionBooleanArr[100];
 		string fieldsArr[100];
 		int j = 0;
 		int k = 0;
 		int l = 0;
 		int m = 0;
+		int n = 0;
 		string str;
 
 		if (operationChoice == "find"){
@@ -130,10 +156,34 @@ int main(int argc, char const **argv)
 
 				char ch = queryIn[i]; 
 
-				//condition name
+				//condition name and Operators
 				if(queryIn[i] == '='){
 	       				conditionNamesArr[j]= str;
+					conditionOperatorsArr[n] = '=';
+					n++;
 					j++;
+					str = "";
+				}
+
+				else if(queryIn[i] == '<'){
+					conditionNamesArr[j]=str;
+					j++;
+					str = "";
+					if(queryIn[i+1] == '>'){
+						conditionOperatorsArr[n] = "<>";
+						i++;
+						n++;
+					}
+					else{
+						conditionOperatorsArr[n] = '<';
+						n++;
+					}
+				}
+				else if (queryIn[i] == '>'){
+					conditionNamesArr[j] = str;
+					conditionOperatorsArr[n] = '>';
+					n++;
+					j++;	
 					str = "";
 				}
 
@@ -223,6 +273,7 @@ int main(int argc, char const **argv)
 			cout << "Error: Please enter a valid query ('find' or 'avg');";
 		}
 
+		/*
 		//Print conditionNames
 		cout << "Condition Names:\n";
 		j = 0;
@@ -241,6 +292,16 @@ int main(int argc, char const **argv)
 		}
 	  	cout << '\n';	
 		
+
+		//Print conditionValues
+		cout << "Condition Values:\n";
+		j = 0;
+		while(conditionOperatorsArr[j] != ""){
+			cout << conditionOperatorsArr[j] << ' ';
+			j++;
+		}
+	  	cout << '\n';	
+
 		//Print conditionBooleans
 		cout << "Condition Booleans:\n";
 		j = 0;
@@ -258,17 +319,20 @@ int main(int argc, char const **argv)
 			cout << fieldsArr[j] << ' ';
 			j++;
 		}
+		//cout << "fieldsArr is: len() = " << j;
+		*/
 	  	cout << '\n' << '\n';	
 
-		processQuery(argv[1],operationChoice, conditionNamesArr, conditionValuesArr, conditionBooleanArr, fieldsArr);
 
-	return 0;
+		processQuery(argv[1],operationChoice, conditionNamesArr, conditionOperatorsArr, conditionValuesArr, conditionBooleanArr, fieldsArr);
+
 
 	}
+	return 0;
 }
 
 
-void processQuery(string file,string operation, string *conditionNamesArr, string *conditionValuesArr, string *conditionBooleanArr,string *fieldsArr){
+void processQuery(string file,string operation, string *conditionNamesArr, string *conditionOperatorsArr, string *conditionValuesArr, string *conditionBooleanArr,string *fieldsArr){
 
 	/*Read in values*/
 	string line;
@@ -276,6 +340,7 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 	string matchesArr[500];
 	int i = 0;
 	int j = 0;
+	int count = 1;
 	if (dataFile.is_open()){
 
 		long id = 0;
@@ -286,7 +351,7 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 			string tempArr[500];
 
 			//process booleans
-			if(arrayLen(conditionBooleanArr) != 0){
+			if(arrayLen(conditionBooleanArr) > 0){
 				/*
 				while ( getline (dataFile,line) ){
 						
@@ -296,101 +361,92 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 			else{
 				while ( getline (dataFile,line) ){
 					
+					line = trim(line);
 					//process condition
-					if(conditionMatches(line, conditionNamesArr[0], conditionValuesArr[0])){
-						matchesArr[i] = "ID: " + to_string(i) + " " + line;
+					//ID is 0 needs to be 1
+					//cout << "Line is: '" << line << "'\n";
+					//cout << "conditionName is: '" << conditionNamesArr[0] << "'\n";
+					//cout << "conditionValue is: '" << conditionValuesArr[0] << "'\n";
+					//cout << "\n";
+					if(conditionMatches(line, conditionNamesArr[0], conditionOperatorsArr[0], conditionValuesArr[0])){
+						matchesArr[i] = "ID: " + to_string(count) + " " + line;
+						//cout << "ID: " + to_string(count) + " " + line + "\n";
 						i++;
 					}	
+					//cout << "Count is: " << count << "\n";
+					count++;	
 				}
-
+				dataFile.close();
 			}
 
 			//print the selected values
-			if(arrayLen(fieldsArr) > 0){
-				while(matchesArr[j] != ""){
-					printSelectedFields(matchesArr[j], fieldsArr);
-					j++;
+			//cout << "Counting arraylen(matchesArr): \n";
+			if(arrayLen(matchesArr) > 0){
+				//cout << "Counting arraylen(fieldsArr): \n";
+				if(arrayLen(fieldsArr) > 0){
+					//cout << "made it here\n";
+					while(matchesArr[j] != ""){
+						printSelectedFields(matchesArr[j], fieldsArr);
+						j++;
+						//cout << "J is: " << j << "\n";
+					}
 				}
-			}
-			else{
-				while(matchesArr[j] != ""){
-					cout << matchesArr[j] << '\n';
-					j++;
-				}	
+				else{
+					while(matchesArr[j] != ""){
+						cout << matchesArr[j] << '\n';
+						j++;
+					}	
+				}
 			}
 
 		}
 		else if(operation == "avg"){
-
+			int retAvg;
+			int sumAvg;
+			int countAvg;
+			while ( getline (dataFile,line) ){
+					
+				line = trim(line);
+				//process condition
+				//ID is 0 needs to be 1
+				//cout << "Line is: '" << line << "'\n";
+				//cout << "conditionName is: '" << conditionNamesArr[0] << "'\n";
+				//cout << "conditionValue is: '" << conditionValuesArr[0] << "'\n";
+				//cout << "\n";
+				retAvg = retreiveAvgValue(line, field);
+				if(retAvg != 0){
+					sumAvg += retAvg;
+					countAvg++;
+				}	
+				//cout << "Count is: " << count << "\n";
+			}
+			dataFile.close();
 		}
 		else{
 			cout << "Incorrect Operation";
 		}
 		
-		id++;		
 		//cout << line << '\n';
-		dataFile.close();
+
 	}
-
-
-}
-void printSelectedFields(string line, string *fieldsArr){
-
-	int i = 0;
-	int j;
-	char ch;
-	string fName;
-	string fValue;
-	bool foundField = false;
-	while(line.length() != i){
-		ch = line[i];
-
-		//find conditionName
-		while(line[i] != ':'){
-			ch = line[i];
-			fName += ch;
-			i++;
-		}
-		i++;
-		i++;
-
-		//find conditionValue
-		while(line[i] != ' '){
-			ch = line[i];
-			fValue += ch;
-			i++;
-		}
-	
-		j = 0;
-		//iterate through fields
-		while(fieldsArr[j] != ""){
-
-			//if field is selected
-			if(fName == fieldsArr[j]){
-				cout << " " << fName << ": " << fValue;
-				foundField = true;
-			}
-		}
-			foundField = false;
-		i++;
-	}
-
-	//print newline if field is found
-	if (foundField){
-		cout << '\n';
-	}
-
 	return;
 }
-/*
- * JUST CHECKS == so far
- */
-bool conditionMatches(string line, string conditionName, string conditionValue){
+
+string trim( string const& original ){
+
+	string::const_iterator right = find_if( original.rbegin(), original.rend(), IsNotSpace() ).base();
+	string::const_iterator left = find_if(original.begin(), right, IsNotSpace() );
+	return string( left, right );
+}
+
+int retreiveAvgValue(string line, string field){
 
 	int i = 0;
 	char ch;
-	string cName;
-	string cValue;
+	string cName = "";
+	string cValue = "";
+	int iValue;
+	int icValue;
 	//cout << "Line len is " << line.length() << '\n';
 	while(line.length() != i){
 		ch = line[i];
@@ -408,30 +464,274 @@ bool conditionMatches(string line, string conditionName, string conditionValue){
 		i++;
 
 		//find conditionValue
-		while(line[i] != ' '){
+		while(line[i] != ' ' and i < line.length()){
+			//cout << "i is: " << to_string(i) << '\n';
+			//cout << "line.length() is: "<< to_string(line.length()) << '\n';
 			ch = line[i];
+			//cout << ch << "\n";
 			cValue += ch;
 			i++;
 		}
 
+		//cout << "	Line is: " << line << "\n";
+		//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+		iValue = stoi(cValue);
+		icValue = stoi(conditionValue);
 
+		if(i <= line.length()){
+			/*
+			ch = line[i];
+			cValue += ch;
+			i++;
+			*/
+			//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
+		}
+	}
+	kkkkkk
+			
+		
+
+}
+
+
+void printSelectedFields(string line, string *fieldsArr){
+
+	int i = 0;
+	int j;
+	char ch;
+	string fName;
+	string fValue;
+	bool foundField = false;
+	//cout << "line is: "<< line<<"\n";
+	if (arrayLen(fieldsArr) == 0){
+		cout << " "<<line << "\n";
+		return;
+	}
+	else{
+		while(line.length() >= i){
+			ch = line[i];
+
+			//find conditionName
+			//cout << "conditionName: \n";
+			while(line[i] != ':'){
+				ch = line[i];
+				//cout << ch << "\n";
+				fName += ch;
+				i++;
+			}
+			i++;
+			i++;
+
+			//find conditionValue
+			while(line[i] != ' ' and i < line.length()){
+				ch = line[i];
+				//cout << ch << "\n";
+				fValue += ch;
+				i++;
+			}
+			//cout << "\n";
+
+
+			j = 0;
+			//iterate through fields
+			while(fieldsArr[j] != ""){
+
+				//if field is selected
+				if(fName == fieldsArr[j]){
+					cout << " " << fName << ": " << fValue;
+					foundField = true;
+				}
+				j++;
+			}
+			i++;
+
+			//print newline if field is found
+
+			/*
+			j = 0;
+			//iterate through fields 
+			while(j < arrayLen(fieldsArr)){
+				//if field is selected
+				//cout << "fName is: " << fName << "\n";
+				//cout << "fieldsArr[" << j << "] is: " << fieldsArr[j] << "\n";
+				if(fName == fieldsArr[j]){
+					cout << " " << fName << ": " << fValue;
+					foundField = true;
+				}
+				j++;
+			}
+			*/
+			fName = "";
+			fValue = "";
+		}
+
+		//print newline if field is found
+		if (foundField){
+			cout << "\n";
+		}
+
+		return;
+	}
+}
+/*
+ *
+ */
+bool conditionMatches(string line, string conditionName, string conditionOperator, string conditionValue){
+
+	int i = 0;
+	char ch;
+	string cName = "";
+	string cValue = "";
+	int iValue;
+	int icValue;
+	//cout << "Line len is " << line.length() << '\n';
+	if(conditionName == ""){
+		return true;
+	}
+	while(line.length() != i){
+		ch = line[i];
+
+		//find conditionName
+		while(line[i] != ':'){
+			if (line.length() == i){
+				return false;
+			}
+			ch = line[i];
+			cName += ch;
+			i++;
+		}
+		i++;
+		i++;
+
+		//find conditionValue
+		while(line[i] != ' ' and i < line.length()){
+			//cout << "i is: " << to_string(i) << '\n';
+			//cout << "line.length() is: "<< to_string(line.length()) << '\n';
+			ch = line[i];
+			//cout << ch << "\n";
+			cValue += ch;
+			i++;
+		}
+
+		//cout << "	Line is: " << line << "\n";
+		//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+		iValue = stoi(cValue);
+		icValue = stoi(conditionValue);
+
+		if(i <= line.length()){
+			/*
+			ch = line[i];
+			cValue += ch;
+			i++;
+			*/
+			//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
+			
+			//operators
+			//equal
+			//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+			if(conditionOperator == "="){
+
+				if(cName == conditionName and ((iValue) == (icValue))){
+					//cout << "	MATCH: cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+					//cout << "matches";
+					return true;
+				}
+				else if(cName == conditionName and ((iValue) != (icValue))){
+					//cout << "Did not find\n";
+					return false;
+				}
+				else{
+					//cout << "Did not find here\n";
+					return false;
+				}
+			}
+			//not equal
+			else if(conditionOperator == "<>"){
+
+				if(cName == conditionName and ((cValue) != (conditionValue))){
+					//cout << "	MATCH: cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+					//cout << "matches";
+					return true;
+				}
+				else if(cName == conditionName and ((cValue) == (conditionValue))){
+					//cout << "Did not find\n";
+					return false;
+				}
+				else{
+					//cout << "Did not find here\n";
+					return false;
+				}
+			}
+			//less than
+			else if(conditionOperator == "<"){
+				//cout << "In the right loop\n";
+				if(cName == conditionName and ((iValue) < (icValue))){
+					//cout << "	MATCH: cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+					//cout << "matches";
+					return true;
+				}
+				else if(cName == conditionName and ((iValue) > (icValue))){
+					//cout << "Did not find\n";
+					return false;
+				}
+				else{
+					//cout << "Did not find here\n";
+					return false;
+				}
+
+			}
+			//greater than
+			else if (conditionOperator == ">"){
+				if(cName == conditionName and ((iValue) > (icValue))){
+					//cout << "	MATCH: cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+					//cout << "matches";
+					return true;
+				}
+				else if(cName == conditionName and ((iValue) < (icValue))){
+					//cout << "Did not find\n";
+					return false;
+				}
+				else{
+					//cout << "Did not find here\n";
+					return false;
+				}
+			}
+		}
+
+		//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
 		//if match
-		cout << "cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
 		if(cName == conditionName and cValue == conditionValue){
+			//cout << "	MATCH: cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
 			//cout << "matches";
 			return true;
 		}
 		else if(cName == conditionName and cValue != conditionValue){
-			//cout << "Did not find";
+			//cout << "Did not find here either\n";
 			return false;
 		}
 		cName = "";
 		cValue = "";
+		i++;
 		//cout << i << "\n";
+		//cout << "Made it here without finding";
 	}
-	//cout << "Made it here without finding";
-	return false;
-
+	//if match
+	/*
+	cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
+	if(cName == conditionName and cValue == conditionValue){
+		//cout << "	MATCH: cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+		//cout << "matches";
+		return true;
+	}
+	else if(cName == conditionName and cValue != conditionValue){
+		//cout << "Did not find\n";
+		return false;
+	}
+	else{
+		//cout << "Did not find here\n";
+		return false;
+	}
+	*/
 }
 
 /* Counts and returns the Length of An Array
@@ -441,12 +741,20 @@ int arrayLen(string *arr){
 
 	int i = 0;
 	int count = 0;
-	//cout << "Counting: ";
+	//cout << "Counting: \n";
+	if(arr[i] == ""){
+		return 0;
+	}
+	else{
+		i++;
+	}	
+
 	while(arr[i] != ""){
-		//cout << arr[i] << " ";
+		//cout << arr[i] << "\n";
+		//cout << i << "\n";
 		i++;
 	}
-	//cout << "\nArrayLen Is: " << to_string(i) << '\n';
+	//cout << "ArrayLen Is: " << to_string(i) << '\n';
 	return i++;
 }
 
