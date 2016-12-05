@@ -45,6 +45,7 @@ int optionV = 0;
 int optionD = 0;
 
 string trim( string const& original );
+bool onlyDigits(string s);
 int retreiveAvgValue(string line, string field);
 void printSelectedFields(string line,string *fieldsArr);
 bool conditionMatches(string line, string conditionName, string conditionOperator, string conditionValue);
@@ -248,13 +249,14 @@ int main(int argc, char const **argv)
 		}
 		else if (operationChoice == "avg"){
 
+			
 			while(queryIn.length() != i){
 
 				char ch = queryIn[i]; 
 
 				//field name
 				if(queryIn[i] == ')'){
-	       				conditionNamesArr[j] = str;
+	       				fieldsArr[j] = str;
 					j++;
 					str = "";
 					break;
@@ -273,7 +275,6 @@ int main(int argc, char const **argv)
 			cout << "Error: Please enter a valid query ('find' or 'avg');";
 		}
 
-		/*
 		//Print conditionNames
 		cout << "Condition Names:\n";
 		j = 0;
@@ -320,7 +321,6 @@ int main(int argc, char const **argv)
 			j++;
 		}
 		//cout << "fieldsArr is: len() = " << j;
-		*/
 	  	cout << '\n' << '\n';	
 
 
@@ -390,6 +390,7 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 						j++;
 						//cout << "J is: " << j << "\n";
 					}
+					//cout << "realCount is: " << realCount << "\n";
 				}
 				else{
 					while(matchesArr[j] != ""){
@@ -401,26 +402,38 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 
 		}
 		else if(operation == "avg"){
-			int retAvg;
-			int sumAvg;
-			int countAvg;
-			while ( getline (dataFile,line) ){
-					
-				line = trim(line);
-				//process condition
-				//ID is 0 needs to be 1
-				//cout << "Line is: '" << line << "'\n";
-				//cout << "conditionName is: '" << conditionNamesArr[0] << "'\n";
-				//cout << "conditionValue is: '" << conditionValuesArr[0] << "'\n";
-				//cout << "\n";
-				retAvg = retreiveAvgValue(line, field);
-				if(retAvg != 0){
-					sumAvg += retAvg;
-					countAvg++;
-				}	
-				//cout << "Count is: " << count << "\n";
+			int retAvg = 0;
+			int sumAvg = 0;
+			int countAvg = 0;
+			if (fieldsArr[0] == ""){
+
+				//handle nothing case
+				cout << "\nPlease enter a field into the avg query. Ex: db.final.avg(Salary)\n";
 			}
-			dataFile.close();
+			else{
+
+				while ( getline (dataFile,line) ){
+						
+					line = trim(line);
+					//process condition
+					//ID is 0 needs to be 1
+					//cout << "Line is: '" << line << "'\n";
+					//cout << "conditionName is: '" << conditionNamesArr[0] << "'\n";
+					//cout << "conditionValue is: '" << conditionValuesArr[0] << "'\n";
+					//cout << "\n";
+					retAvg = retreiveAvgValue(line, fieldsArr[0]);
+					if(retAvg != 0){
+						sumAvg += retAvg;
+						//cout << "	sumAvg: "<< sumAvg<< "\n";
+						countAvg++;
+					}	
+					retAvg = 0;
+				}
+				cout << "sumAvg: " << sumAvg << "\n";
+				cout << "countAvg: " << countAvg << "\n";
+				cout << "avg_" << fieldsArr[0] << ": " << (sumAvg/countAvg) << "\n";
+				dataFile.close();
+			}
 		}
 		else{
 			cout << "Incorrect Operation";
@@ -439,22 +452,33 @@ string trim( string const& original ){
 	return string( left, right );
 }
 
+bool onlyDigits(string s){
+
+	for (size_t i = 0; i < s.length(); i++){
+		if (!isdigit(s[i])){
+			return false;
+	    	}
+	}
+	return true;
+}
+
+
 int retreiveAvgValue(string line, string field){
 
 	int i = 0;
 	char ch;
 	string cName = "";
 	string cValue = "";
-	int iValue;
-	int icValue;
+	int aValue;
 	//cout << "Line len is " << line.length() << '\n';
 	while(line.length() != i){
+
 		ch = line[i];
 
 		//find conditionName
 		while(line[i] != ':'){
 			if (line.length() == i){
-				return false;
+				return 0;
 			}
 			ch = line[i];
 			cName += ch;
@@ -474,23 +498,23 @@ int retreiveAvgValue(string line, string field){
 		}
 
 		//cout << "	Line is: " << line << "\n";
-		//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
-		iValue = stoi(cValue);
-		icValue = stoi(conditionValue);
+		//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << field << '\n';
+		if(cName == field and onlyDigits(cValue)){
+			aValue = stoi(cValue);
 
-		if(i <= line.length()){
-			/*
-			ch = line[i];
-			cValue += ch;
-			i++;
-			*/
-			//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
+			if(i <= line.length()){
+				//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << field << '\n';
+				cout << cName << ": " << cValue << "\n";
+				return aValue;
+				//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
+			}
+			else{
+				return 0;
+			}
 		}
-	}
-	kkkkkk
-			
 		
-
+	}
+	return 0;
 }
 
 
