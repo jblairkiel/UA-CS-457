@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <deque>
+#include <queue>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -46,11 +48,12 @@ int optionD = 0;
 
 string trim( string const& original );
 bool onlyDigits(string s);
+vector<string> evalBoolean(string *data, string conditionName1, string conditionValue1, string conditionOperator1, string conditionName2, string conditionValue2, string conditionOperator2, string boolean);
 int retreiveAvgValue(string line, string field);
 void printSelectedFields(string line,string *fieldsArr);
 bool conditionMatches(string line, string conditionName, string conditionOperator, string conditionValue);
 int arrayLen(string *arr);
-void processQuery(string file, string operation, string *conditionNamesArr, string *conditionOperatorsArr, string *conditionValuesArr, string *conditionBooleanArr, string *fieldsArr);
+void processQuery(string file, string operation, string *conditionNamesArr, string *conditionOperatorsArr, string *conditionValuesArr, string *conditionBooleanArr, string *fieldsArr, queue<string> conditionQueue);
 int ProcessOptions(int, char const **);
 void Fatal(char const *, ...);
 
@@ -136,24 +139,27 @@ int main(int argc, char const **argv)
 		cout << "dbChoice: "<< dbChoice << " | collectionChoice: " << collectionChoice << " | operationChoice: " << operationChoice << "\nQuery: "<< queryIn << "\n";
 
 		/*Evaluate Operation's Arguments' Conditions and Fields*/
+		
 
 		string conditionNamesArr[100];
 		string conditionValuesArr[100];
 		string conditionOperatorsArr[100];
 		string conditionBooleanArr[100];
 		string fieldsArr[100];
+		queue<string> conditionQueue;
 		int j = 0;
 		int k = 0;
 		int l = 0;
 		int m = 0;
 		int n = 0;
 		string str;
+		string queueStr;
 
 		if (operationChoice == "find"){
 
 			//parse conditionChoices
 			i++;
-			while(queryIn[i] != ')' & queryIn.length() != i){
+			while(queryIn[i] != ',' & queryIn.length() != i){
 
 				char ch = queryIn[i]; 
 
@@ -164,12 +170,14 @@ int main(int argc, char const **argv)
 					n++;
 					j++;
 					str = "";
+					queueStr += ch;
 				}
 
 				else if(queryIn[i] == '<'){
 					conditionNamesArr[j]=str;
 					j++;
 					str = "";
+					queueStr += ch;
 					if(queryIn[i+1] == '>'){
 						conditionOperatorsArr[n] = "<>";
 						i++;
@@ -185,44 +193,83 @@ int main(int argc, char const **argv)
 					conditionOperatorsArr[n] = '>';
 					n++;
 					j++;	
+					queueStr += ch;
 					str = "";
 				}
 
 				//check if boolean
 				else if(str == "and" or str == "or"){
 					conditionBooleanArr[k] = str;
+					//cout << "queryIn[i+1] is: " << queryIn[i+1] << "\n";
+					if (queryIn[i+1] == '('){
+						conditionQueue.push(str);
+					}
 					str = "";
 					k++;
 				}
 
 				//condition value
-				else if(queryIn[i] == ' '){
+				else if(queryIn[i] == ' ' and queryIn[i+1] == '('){
+					cout << "Ch is : " << ch << "\n";
+					queueStr += ch;	
+				}
+
+				else if(queryIn[i] == ' ' and queryIn[i+1] != 'a' and queryIn[i+1] != 'o'){
+					cout << "Ch is : " << ch << "\n";
+					cout << "Made it here: '" << str << "'\n";
+					queueStr += ch;
 					conditionValuesArr[l] = str;
 					l++;
 					str = "";
 				}
 
+				else if(queryIn[i] == ' '){
+					queueStr += ch;
+				}
+
+				
+
+				else if(queryIn[i] == ' ' and queryIn[i-1] != ')'){
+					conditionValuesArr[l] = str;
+					queueStr += ch;
+					l++;
+					str = "";
+				}
+
+
+				//else if (queryIn[i] == ' ' and (queryIn[i+1] == 'a' or queryIn[i+1] == 'o')){
+				else if (queryIn[i] == ' ' and queryIn[i-1] == ')'){
+					str = "";
+				}
+
+				else if(queryIn[i] == '('){
+					queueStr = "";
+					queueStr += ch;
+				}
+
 				//condition value end 
-				else if (queryIn[i] == ')'){
+				else if (queryIn[i] == ')' and queryIn[i+1] != ','){
+					queueStr += ch;
 					conditionValuesArr[l] = str;
 					l++;
+					conditionQueue.push(queueStr);
+					queueStr = "";
 					str = "";	
-					break;
 				}
 
 				else{
 					str += ch;
+					queueStr += ch;
 				}
 				i++;
 
 			}
-			conditionValuesArr[l] = str;
+			//conditionValuesArr[l] = str;
 			l++;
 			i++;
 			str = "";
 
 			//Parse Fields
-			i++;
 			i++;
 			i++;
 			while(queryIn[i] != ']' & queryIn.length() != i){
@@ -288,7 +335,7 @@ int main(int argc, char const **argv)
 		cout << "Condition Values:\n";
 		j = 0;
 		while(conditionValuesArr[j] != ""){
-			cout << conditionValuesArr[j] << ' ';
+			cout << conditionValuesArr[j] << " | ";
 			j++;
 		}
 	  	cout << '\n';	
@@ -321,10 +368,25 @@ int main(int argc, char const **argv)
 			j++;
 		}
 		//cout << "fieldsArr is: len() = " << j;
+
+
+		//Print conditionQueue
+		cout << "ConditionQueue:\n";
+		queue<string> tempQueue;
+		while(!conditionQueue.empty()){
+			cout << conditionQueue.front() << '|';
+			tempQueue.push(conditionQueue.front());
+			conditionQueue.pop();
+		}
+
+		while(!tempQueue.empty()){
+			conditionQueue.push(tempQueue.front());
+			tempQueue.pop();
+		}
 	  	cout << '\n' << '\n';	
 
 
-		processQuery(argv[1],operationChoice, conditionNamesArr, conditionOperatorsArr, conditionValuesArr, conditionBooleanArr, fieldsArr);
+		processQuery(argv[1],operationChoice, conditionNamesArr, conditionOperatorsArr, conditionValuesArr, conditionBooleanArr, fieldsArr, conditionQueue);
 
 
 	}
@@ -332,14 +394,18 @@ int main(int argc, char const **argv)
 }
 
 
-void processQuery(string file,string operation, string *conditionNamesArr, string *conditionOperatorsArr, string *conditionValuesArr, string *conditionBooleanArr,string *fieldsArr){
+
+void processQuery(string file,string operation, string *conditionNamesArr, string *conditionOperatorsArr, string *conditionValuesArr, string *conditionBooleanArr,string *fieldsArr, queue<string> conditionQueue){
 
 	/*Read in values*/
 	string line;
 	ifstream dataFile (file);
+	string data[500];
 	string matchesArr[500];
+	vector<string> tempVect;
 	int i = 0;
 	int j = 0;
+	int k = 0;
 	int count = 1;
 	if (dataFile.is_open()){
 
@@ -352,11 +418,18 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 
 			//process booleans
 			if(arrayLen(conditionBooleanArr) > 0){
-				/*
 				while ( getline (dataFile,line) ){
-						
+					line = trim(line);
+					data[k] = line;
+					k++;
+					//process condition
+					//cout << "Line is: '" << line << "'\n";
+					//cout << "conditionName is: '" << conditionNamesArr[0] << "'\n";
+					//cout << "conditionValue is: '" << conditionValuesArr[0] << "'\n";
+					//cout << "\n";
+
 				}
-				*/
+				tempVect = evalBoolean(data, conditionNamesArr[0], conditionValuesArr[0], conditionOperatorsArr[0], conditionNamesArr[1], conditionValuesArr[1], conditionOperatorsArr[1], conditionBooleanArr[0]);
 			}
 			else{
 				while ( getline (dataFile,line) ){
@@ -403,7 +476,7 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 		}
 		else if(operation == "avg"){
 			int retAvg = 0;
-			int sumAvg = 0;
+			float sumAvg = 0;
 			int countAvg = 0;
 			if (fieldsArr[0] == ""){
 
@@ -427,10 +500,11 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 						//cout << "	sumAvg: "<< sumAvg<< "\n";
 						countAvg++;
 					}	
+					//cout << count++ << "\n";
 					retAvg = 0;
 				}
-				cout << "sumAvg: " << sumAvg << "\n";
-				cout << "countAvg: " << countAvg << "\n";
+				//cout << "sumAvg: " << sumAvg << "\n";
+				//cout << "countAvg: " << countAvg << "\n";
 				cout << "avg_" << fieldsArr[0] << ": " << (sumAvg/countAvg) << "\n";
 				dataFile.close();
 			}
@@ -445,6 +519,9 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 	return;
 }
 
+/* Function that trims a string similiar to python's "strip()"
+ *
+ */
 string trim( string const& original ){
 
 	string::const_iterator right = find_if( original.rbegin(), original.rend(), IsNotSpace() ).base();
@@ -452,6 +529,9 @@ string trim( string const& original ){
 	return string( left, right );
 }
 
+/* Function that ensures a string consists of only digits
+ *
+ */
 bool onlyDigits(string s){
 
 	for (size_t i = 0; i < s.length(); i++){
@@ -462,7 +542,70 @@ bool onlyDigits(string s){
 	return true;
 }
 
+/* Evaluator used for booleans
+ *
+ */
+vector<string> evalBoolean(string *data, string conditionName1, string conditionValue1, string conditionOperator1, string conditionName2, string conditionValue2, string conditionOperator2, string boolean){
 
+	int i = 0;
+	int j = 0;
+	int k = 0;
+	string arr1[500];
+	string arr2[500];
+	vector<string> arr3;
+	vector<string>::iterator it;
+
+	//process arr1
+	while(data[i] != ""){
+		if(conditionMatches(data[i], conditionName1, conditionOperator1, conditionValue1)){
+			arr1[j] = data[i];
+			j++;
+		}
+		i++;
+	}
+
+	//process arr2
+	i = 0;
+	while(data[i] != ""){
+		if(conditionMatches(data[i], conditionName2, conditionOperator2, conditionValue2)){
+			arr2[k] = data[i];
+			k++;
+		}
+		i++;
+	}
+
+	i = 0;
+	j = 0;
+	k = 0;
+	//process boolean
+	it = arr3.begin();
+	if (boolean == "and"){
+		while(arr1[i] != ""){
+			while(arr2[j] != ""){
+				if(arr1[i] == arr2[j]){
+					it = arr3.insert ( it , arr1[i] );
+					it = arr3.end();
+				}
+				j++;
+			}
+			i++;
+			j=0;
+		}	
+	}
+	else if(boolean == "or"){
+
+	}
+	else{
+		cout << "Error: spell 'or' or 'and' correctly\n";
+	}
+
+	return arr3;
+}
+
+
+/* Function that returns the fieldvalue of a document record if it contains the correct field 
+ *
+ */
 int retreiveAvgValue(string line, string field){
 
 	int i = 0;
@@ -470,16 +613,18 @@ int retreiveAvgValue(string line, string field){
 	string cName = "";
 	string cValue = "";
 	int aValue;
-	//cout << "Line len is " << line.length() << '\n';
+	//cout << "\nLine is " << line << '\n';
 	while(line.length() != i){
 
 		ch = line[i];
 
 		//find conditionName
 		while(line[i] != ':'){
+			/*
 			if (line.length() == i){
 				return 0;
 			}
+			*/
 			ch = line[i];
 			cName += ch;
 			i++;
@@ -499,25 +644,37 @@ int retreiveAvgValue(string line, string field){
 
 		//cout << "	Line is: " << line << "\n";
 		//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << field << '\n';
-		if(cName == field and onlyDigits(cValue)){
-			aValue = stoi(cValue);
+		cName = trim(cName);
+		//cout << "'" << cValue << "' ";
+		//cout << "Comparing: '" << cName << "' and '" << field << "'\n ";
+		if((cName.compare(field) == 0) and onlyDigits(cValue)){
+				//if(cName == field){
+				//cout << "Is a digit\n";
+				aValue = stoi(cValue);
 
-			if(i <= line.length()){
-				//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << field << '\n';
-				cout << cName << ": " << cValue << "\n";
-				return aValue;
-				//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
-			}
-			else{
-				return 0;
-			}
+				if(i <= line.length()){
+					//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << field << '\n';
+					//cout << cName << ": " << cValue << "\n";
+					return aValue;
+					//cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
+				}
+				/*
+				else{
+					return 0;
+				}
+				*/
+				//cout << cName << ": " << cValue << "\n";
 		}
+		cName = "";
+		cValue = "";
 		
 	}
 	return 0;
 }
 
-
+/* Function that prints the correct fields of a document record
+ *
+ */
 void printSelectedFields(string line, string *fieldsArr){
 
 	int i = 0;
@@ -597,7 +754,8 @@ void printSelectedFields(string line, string *fieldsArr){
 		return;
 	}
 }
-/*
+
+/* Function that determines whether a document record contains the correct condition
  *
  */
 bool conditionMatches(string line, string conditionName, string conditionOperator, string conditionValue){
