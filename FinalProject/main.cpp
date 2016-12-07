@@ -201,9 +201,11 @@ int main(int argc, char const **argv)
 				else if(str == "and" or str == "or"){
 					conditionBooleanArr[k] = str;
 					//cout << "queryIn[i+1] is: " << queryIn[i+1] << "\n";
+					/*
 					if (queryIn[i+1] == '('){
 						conditionQueue.push(str);
 					}
+					*/
 					str = "";
 					k++;
 				}
@@ -255,6 +257,15 @@ int main(int argc, char const **argv)
 					conditionQueue.push(queueStr);
 					queueStr = "";
 					str = "";	
+				}
+				else if (queryIn[i] == ')' and queryIn[i+1] == ','){
+					//queueStr += ch;
+					conditionValuesArr[l] = str;
+					l++;
+					conditionQueue.push(queueStr);
+					queueStr = "";
+					str = "";	
+
 				}
 
 				else{
@@ -402,10 +413,11 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 	ifstream dataFile (file);
 	string data[500];
 	string matchesArr[500];
-	vector<string> tempVect;
 	int i = 0;
 	int j = 0;
 	int k = 0;
+	int l = 0;
+	int m = 0;
 	int count = 1;
 	if (dataFile.is_open()){
 
@@ -416,10 +428,10 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 			string helperArr[500];
 			string tempArr[500];
 
+			line = trim(line);
 			//process booleans
 			if(arrayLen(conditionBooleanArr) > 0){
 				while ( getline (dataFile,line) ){
-					line = trim(line);
 					data[k] = line;
 					k++;
 					//process condition
@@ -429,11 +441,29 @@ void processQuery(string file,string operation, string *conditionNamesArr, strin
 					//cout << "\n";
 
 				}
-				tempVect = evalBoolean(data, conditionNamesArr[0], conditionValuesArr[0], conditionOperatorsArr[0], conditionNamesArr[1], conditionValuesArr[1], conditionOperatorsArr[1], conditionBooleanArr[0]);
+
+				//while booleans are still
+				//
+				string nConQueue = "";
+				cout << "conditionQueue.size(): " << conditionQueue.size() << "\n";
+				while(conditionQueue.size() != 0){
+				
+					nConQueue = conditionQueue.front();
+					vector<string> tempVect = evalBoolean(data, conditionNamesArr[m], conditionValuesArr[m], conditionOperatorsArr[m], conditionNamesArr[m+1], conditionValuesArr[m+1], conditionOperatorsArr[m+1], nConQueue);
+					while(tempVect.size() != 0){
+						helperArr[l] = tempVect.back();
+						tempVect.pop_back();
+						l++;
+					}
+					conditionQueue.pop();
+					m++;
+					m++;
+				}
+
 			}
 			else{
 				while ( getline (dataFile,line) ){
-					
+					//cout << "Made it here";	
 					line = trim(line);
 					//process condition
 					//ID is 0 needs to be 1
@@ -555,6 +585,14 @@ vector<string> evalBoolean(string *data, string conditionName1, string condition
 	vector<string> arr3;
 	vector<string>::iterator it;
 
+	cout << "\nconditionName1: "<< conditionName1 << "\nconditionValue1: " << conditionValue1 << "\nconditionOperator1: "<< conditionOperator1 << "\n";
+	cout << "\nconditionName2: "<< conditionName2 << "\nconditionValue2: " << conditionValue2 << "\nconditionOperator2: " << conditionOperator2 << "\n";
+	cout << "\nBoolean: " << boolean << "\n";
+
+	if (boolean.find(" and ") != std::string::npos or boolean.find(" or ") != std::string::npos) {
+		    std::cout << "found!" << '\n';
+	}
+
 	//process arr1
 	while(data[i] != ""){
 		if(conditionMatches(data[i], conditionName1, conditionOperator1, conditionValue1)){
@@ -584,7 +622,7 @@ vector<string> evalBoolean(string *data, string conditionName1, string condition
 			while(arr2[j] != ""){
 				if(arr1[i] == arr2[j]){
 					it = arr3.insert ( it , arr1[i] );
-					it = arr3.end();
+					it = arr3.begin();
 				}
 				j++;
 			}
@@ -766,11 +804,12 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 	string cValue = "";
 	int iValue;
 	int icValue;
-	//cout << "Line len is " << line.length() << '\n';
+	line = trim(line);
+	cout << "Line is '" << line << "'\n";
 	if(conditionName == ""){
 		return true;
 	}
-	while(line.length() != i){
+	while(line.length() >= i){
 		ch = line[i];
 
 		//find conditionName
@@ -795,8 +834,9 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 			i++;
 		}
 
-		//cout << "	Line is: " << line << "\n";
-		//cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+		cout << "	Line is: " << line << "\n";
+		cout << "	cName,cValue | " << cName <<","<<cValue<< " Checking for: " << conditionName << "=" << conditionValue << '\n';
+		cName = trim(cName);
 		iValue = stoi(cValue);
 		icValue = stoi(conditionValue);
 
@@ -822,10 +862,12 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 					//cout << "Did not find\n";
 					return false;
 				}
+				/*
 				else{
 					//cout << "Did not find here\n";
 					return false;
 				}
+				*/
 			}
 			//not equal
 			else if(conditionOperator == "<>"){
@@ -839,10 +881,12 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 					//cout << "Did not find\n";
 					return false;
 				}
+				/*
 				else{
 					//cout << "Did not find here\n";
 					return false;
 				}
+				*/
 			}
 			//less than
 			else if(conditionOperator == "<"){
@@ -856,10 +900,12 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 					//cout << "Did not find\n";
 					return false;
 				}
+				/*
 				else{
 					//cout << "Did not find here\n";
 					return false;
 				}
+				*/
 
 			}
 			//greater than
@@ -873,10 +919,12 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 					//cout << "Did not find\n";
 					return false;
 				}
+				/*
 				else{
 					//cout << "Did not find here\n";
 					return false;
 				}
+				*/
 			}
 		}
 
@@ -897,6 +945,7 @@ bool conditionMatches(string line, string conditionName, string conditionOperato
 		//cout << i << "\n";
 		//cout << "Made it here without finding";
 	}
+	return false;
 	//if match
 	/*
 	cout << "cName,cValue | '" << cName << "','" << cValue << "'\n";
